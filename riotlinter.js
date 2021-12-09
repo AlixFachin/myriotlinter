@@ -15,9 +15,9 @@
 // RULES
 // - no backquotes
 // DONE - only single quotes in JavaScript
-// space around operators in expression (JS BLOCK)
+// DONE - space around operators in expression (JS BLOCK)
 // space around operators in an expression (HTML BLOCK)
-// Issue a warning when the three equals are used
+// DONE - Issue a warning when the three equals are used
 // White space inside {} for HTML expressions
 // White space outside for IF and FOR
 // No space around HTML = sign
@@ -26,8 +26,38 @@
 // In HTML, no space between the end quote and the ">"
 // Making sure functions have commented all the parameters (-> Not sure really needed)
 // Missing semicolumns (? -> This one will be tricky!)
-
+// Detecting identifiers declared nowhere??? (Tricky! Need to really build the tree and environments???)
 // 
+const { log } = require("console");
+const { existsSync, readFileSync } = require("fs");
+const RUN_MODE = 'PROD';
+
+function logger(s, color='black', level='PROD') {
+    let colorCode = '';
+    const colorBlack = '\x1b[0m';
+    switch(color) {
+        case 'red':
+            colorCode = '\x1b[31m';
+            break;
+        case 'blue':
+            colorCode = '\x1b[34m';
+            break;
+        case 'green':
+            colorCode = '\x1b[32m';
+            break;
+        case 'yellow':
+            colorCode = '\x1b[33m';
+            break;
+        default:
+            colorCode = '\x1b[0m';
+    }
+    
+    let shouldDisplay = RUN_MODE == 'TEST' || (RUN_MODE == 'PROD' && level == 'PROD');
+    
+    if (shouldDisplay) {
+        console.log(colorCode + s + colorBlack);
+    }
+}
 
 // simpleRegExpRuleFactory returns an "rule" object, with a function and a message
 const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
@@ -52,56 +82,127 @@ const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
 
 // Building the operator rule little by little
 const js_operators = '[' + ['\\+','\\-', '\\*', '%','<','>' ].join() + ']';
-const js_operators_regexp = `(\\w${js_operators}\\w | \\s${js_operators}\\w | \\w${js_operators}\\s)`
-console.log(js_operators_regexp);
+const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
 
 const jsRulesList = [
     simpleRegExpRuleFactory('`', 'Forbidden use of backquotes!'),
     simpleRegExpRuleFactory('"', 'Forbidden use of double quotes in JS!'),
+    simpleRegExpRuleFactory('===', 'Warking - make sure to use the triple equal wisely'),
     simpleRegExpRuleFactory(js_operators_regexp, 'Not enough space around operators!'),
 ];
 
 const cssRulesList = [];
+const htmlRulesList = [];
 
-const { existsSync, readFileSync } = require("fs");
+function getBlocks(fileData, componentName) {
+    const result = {
+        cssBlock: '',
+        htmlBlock: '',
+        jsBlock: '',
+        status: '',
+    }
+
+    // For Riot Files, the <script> tag is optional
+    const filePattern = new RegExp( '(?<html_block>(.|\n)*?)<style(.|\n)*?>(?<css_block>(.|\n)*?)<\/style>(.|\n)*?<script>(?<js_block>(.|\n)*?)<\/script>')
+    const parts = fileData.match(filePattern);
+    const filePattern2 = new RegExp('(?<html_block>(.|\n)*?)<style(.|\n)*?>(?<css_block>(.|\n)*?)<\/style>(?<js_block>(.|\n)*?)<\/' + componentName +'>')
+
+    if (parts) {
+        result.cssBlock = parts.groups['css_block'];
+        result.jsBlock = parts.groups['js_block'];
+        result.htmlBlock = parts.groups['html_block'];
+        result.status = 'OK';
+        return result;
+    } else {
+        // Trying the second pattern 
+        let parts2 = fileData.match(filePattern2)
+        if (parts2) {
+            result.cssBlock = parts2.groups['css_block'];
+            result.jsBlock = parts2.groups['js_block'];
+            result.htmlBlock = parts2.groups['html_block'];
+            result.status = 'OK';
+            return result;
+        } else {
+            logger('Cannot match pattern for file ','red')
+            return result;
+        }
+    }
+}
+
+function checkFile(fileName, componentName='') {
+    
+    const data = readFileSync(fileName, "utf-8");
+    let codeBlocks;
+
+    logger('Looking at file ' + fileName, 'yellow');
+
+    // Deciding the process according to the file type
+    if (fileName.endsWith('.tag') || fileName.endsWith('.riot')) {
+        let pureFileName = fileName.split('/').pop();
+        pureFileName = pureFileName.substring(0,pureFileName.indexOf('.'));
+        codeBlocks = getBlocks(data, componentName ? componentName : pureFileName );
+    } else if (fileName.endsWith('.js')) {
+        codeBlocks = {
+            cssBlock: '',
+            htmlBlock: '',
+            jsBlock: data,
+            status: 'OK',
+        }
+    } else {
+        logger('Cannot find File ' + fileName, 'red');
+        return;
+    }
+
+    if (codeBlocks.status !== 'OK') {
+        return;
+    }
+
+    let errorList;
+    let rule;
+    if (codeBlocks.jsBlock !== '') {
+        for (let i=0; i<jsRulesList.length; i++) {
+            rule = jsRulesList[i];
+            errorList = rule.process(codeBlocks.jsBlock);
+            errorList.forEach(ruleError => {
+                console.log(`\x1b[31m${rule.message}\x1b[0m:\n Line \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
+            });
+        }
+    }
+}
+
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 // argv[0] = node
 // argv[1] = this script name
 // argv[2] = the first actual parameter - file name and path
 // argv[3] = the component name
-if (process.argv.length < 4) {
+if (process.argv.length < 3) {
     console.error('Not enough parameters!')
-    console.log('usage: node riotliner.js <path-to-riot-file> <component-name>')
+    console.log('usage: node riotliner.js <path-to-riot-file> <Optional:component-name>')
     return;
 }
 
 const componentName = process.argv[3];
 const filePath = process.argv[2];
+
 if (!existsSync(filePath) ) {
     console.error('Cannot find component file!')
     return;
 }
 
-const data = readFileSync(filePath, "utf8");
-const filePattern = new RegExp( `(?<html_block>(.|\n)*?)<style>(?<css_block>(.|\n)*?)<\/style>(.|\n)*?<script>(?<js_block>(.|\n)*?)<\/script>`)
-
-const parts = data.match(filePattern);
-if (parts) {
-    const cssBlock = parts.groups['css_block'];
-    const jsBlock = parts.groups['js_block'];
-    const htmlBlock = parts.groups['html_block'];
-   // console.log('The css Block is:\n' + jsBlock);
-
-    let errorList;
-    let rule;
-    for (let i=0; i<jsRulesList.length; i++) {
-        rule = jsRulesList[i];
-        errorList = rule.process(jsBlock);
-        errorList.forEach(ruleError => {
-            console.log(`\x1b[31m${rule.message}\x1b[0m:\n Line \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
-        });
+if (filePath.endsWith('.tag') || filePath.endsWith('.riot') || filePath.endsWith('.js') ) {
+    checkFile(filePath, componentName);
+} else if (filePath.endsWith('.txt')) {
+    const data = readFileSync(filePath, "utf-8");
+    const lineSeparated = data.split('\n');
+    if (lineSeparated[0].trim() === '#LINTBATCH') {
+        for (let i=1; i<lineSeparated.length; i++) {
+            if (lineSeparated[i].trim() !== '') {
+                checkFile(lineSeparated[i].trim());
+            }
+        }
+    } else {
+        logger('File format not recognized!', 'red');
     }
-
-} else {
-    console.log('File pattern not matched!')
 }
+
