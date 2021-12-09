@@ -28,7 +28,6 @@
 // Missing semicolumns (? -> This one will be tricky!)
 // Detecting identifiers declared nowhere??? (Tricky! Need to really build the tree and environments???)
 // 
-const { log } = require("console");
 const { existsSync, readFileSync } = require("fs");
 const RUN_MODE = 'PROD';
 
@@ -83,6 +82,8 @@ const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
 // Building the operator rule little by little
 const js_operators = '[' + ['\\+','\\-', '\\*', '%','<','>' ].join() + ']';
 const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
+
+
 
 const jsRulesList = [
     simpleRegExpRuleFactory('`', 'Forbidden use of backquotes!'),
@@ -157,17 +158,21 @@ function checkFile(fileName, componentName='') {
         return;
     }
 
-    let errorList;
+    let errorList = [];
     let rule;
     if (codeBlocks.jsBlock !== '') {
         for (let i=0; i<jsRulesList.length; i++) {
             rule = jsRulesList[i];
-            errorList = rule.process(codeBlocks.jsBlock);
-            errorList.forEach(ruleError => {
-                console.log(`\x1b[31m${rule.message}\x1b[0m:\n Line \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
-            });
+            // TO DO -> Concatenate everything in order to display the errors in the regular order
+            errorList = errorList.concat(rule.process(codeBlocks.jsBlock));
         }
     }
+    // Sorting the error list by line number
+    errorList.sort((e1, e2) => e1.lineNr - e2.lineNr );
+    // Displaying error list
+    errorList.forEach(ruleError => {
+        console.log(`\x1b[31m${rule.message}\x1b[0m:\n Line \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
+    });
 }
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
