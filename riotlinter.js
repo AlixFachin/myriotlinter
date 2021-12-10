@@ -71,6 +71,7 @@ const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
                 errorList.push({
                     lineNr: i,
                     errorLine: lines[i],
+                    errorMsg: errorMessage,
                 })
             }
         }
@@ -79,17 +80,41 @@ const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
     return rule;
 }
 
-// Building the operator rule little by little
-const js_operators = '[' + ['\\+','\\-', '\\*', '%','<','>' ].join() + ']';
-const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
+const jsOperatorRule = {
+    message: 'Not enough space around operators!',
+    process: block => {
+        // Building the operator rule little by little
+        const js_operators = '(?:' + ['\\+','\\-(?!\\-)', '\\*', '%','<','>', '(?<!\!)==', '!==', '&&', '\\|\\|'].join('|') + ')';
+        const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
+        const operator_exceptions = new RegExp([].join('|'))
 
+        const errorList = [];
+        pattern = new RegExp(js_operators_regexp);
+        lines = block.split('\n');
+        for (let i=0; i< lines.length; i++ ) {
+            if (pattern.test(lines[i])) {
+                // We have an error. We have to remove manually the false positives
+                
 
+                errorList.push({
+                    lineNr: i,
+                    errorLine: lines[i],
+                    errorMsg: 'Not enough space around operators!'
+                })
+            }
+        }
+        return errorList
+    },
+}
 
 const jsRulesList = [
     simpleRegExpRuleFactory('`', 'Forbidden use of backquotes!'),
     simpleRegExpRuleFactory('"', 'Forbidden use of double quotes in JS!'),
-    simpleRegExpRuleFactory('===', 'Warking - make sure to use the triple equal wisely'),
-    simpleRegExpRuleFactory(js_operators_regexp, 'Not enough space around operators!'),
+    simpleRegExpRuleFactory('===', 'No triple equals!'),
+    simpleRegExpRuleFactory('{\\S.*?\\S}|{\\S.*?\\s}|{\\s.*?\\S}', 'Space inside curly brackets!'),
+    simpleRegExpRuleFactory('\\s:', 'No space before : in object properties!'),
+    simpleRegExpRuleFactory('\( *\w+ *\) +=>', 'parenthesis around single parameter arrow function'),
+    jsOperatorRule,
 ];
 
 const cssRulesList = [];
@@ -171,7 +196,7 @@ function checkFile(fileName, componentName='') {
     errorList.sort((e1, e2) => e1.lineNr - e2.lineNr );
     // Displaying error list
     errorList.forEach(ruleError => {
-        console.log(`\x1b[31m${rule.message}\x1b[0m:\n Line \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
+        console.log(`\x1b[31m${ruleError.errorMsg}\x1b[0m:\n \x1b[33m${ruleError.lineNr}\x1b[0m:${ruleError.errorLine}`);
     });
 }
 
