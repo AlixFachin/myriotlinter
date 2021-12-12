@@ -1,0 +1,5 @@
+#LINTBATCH
+test/test_src/test1.tag
+test/test_src/test2.riot
+test/test_src/test3.js
+

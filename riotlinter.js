@@ -10,26 +10,11 @@
 //  -> Displays the line (and maybe the line before / the line after)
 //  AFTER -> Displays the original line number (so that we can find the mistake afterwards)
 // A rule -> A function which returns "true" if there is a match 
-
-
-// RULES
-// - no backquotes
-// DONE - only single quotes in JavaScript
-// DONE - space around operators in expression (JS BLOCK)
-// space around operators in an expression (HTML BLOCK)
-// DONE - Issue a warning when the three equals are used
-// White space inside {} for HTML expressions
-// White space outside for IF and FOR
-// No space around HTML = sign
-// Trailing spaces (at end of line)
-// No /* ... */ comments
-// In HTML, no space between the end quote and the ">"
-// Making sure functions have commented all the parameters (-> Not sure really needed)
-// Missing semicolumns (? -> This one will be tricky!)
-// Detecting identifiers declared nowhere??? (Tricky! Need to really build the tree and environments???)
-// 
+ 
 const { existsSync, readFileSync } = require("fs");
 const RUN_MODE = 'PROD';
+
+const lintRules = require('./rules');
 
 function logger(s, color='black', level='PROD') {
     let colorCode = '';
@@ -57,68 +42,6 @@ function logger(s, color='black', level='PROD') {
         console.log(colorCode + s + colorBlack);
     }
 }
-
-// simpleRegExpRuleFactory returns an "rule" object, with a function and a message
-const simpleRegExpRuleFactory = (regExpString, errorMessage) => {
-    const rule = {};
-    rule.message = errorMessage;
-    rule.process = (block) => {
-        const errorList = [];
-        pattern = new RegExp(regExpString);
-        lines = block.split('\n');
-        for (let i=0; i< lines.length; i++ ) {
-            if (pattern.test(lines[i])) {
-                errorList.push({
-                    lineNr: i,
-                    errorLine: lines[i],
-                    errorMsg: errorMessage,
-                })
-            }
-        }
-        return errorList
-    }
-    return rule;
-}
-
-const jsOperatorRule = {
-    message: 'Not enough space around operators!',
-    process: block => {
-        // Building the operator rule little by little
-        const js_operators = '(?:' + ['\\+','\\-(?!\\-)', '\\*', '%','<','>', '(?<!\!)==', '!==', '&&', '\\|\\|'].join('|') + ')';
-        const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
-        const operator_exceptions = new RegExp([].join('|'))
-
-        const errorList = [];
-        pattern = new RegExp(js_operators_regexp);
-        lines = block.split('\n');
-        for (let i=0; i< lines.length; i++ ) {
-            if (pattern.test(lines[i])) {
-                // We have an error. We have to remove manually the false positives
-                
-
-                errorList.push({
-                    lineNr: i,
-                    errorLine: lines[i],
-                    errorMsg: 'Not enough space around operators!'
-                })
-            }
-        }
-        return errorList
-    },
-}
-
-const jsRulesList = [
-    simpleRegExpRuleFactory('`', 'Forbidden use of backquotes!'),
-    simpleRegExpRuleFactory('"', 'Forbidden use of double quotes in JS!'),
-    simpleRegExpRuleFactory('===', 'No triple equals!'),
-    simpleRegExpRuleFactory('{\\S.*?\\S}|{\\S.*?\\s}|{\\s.*?\\S}', 'Space inside curly brackets!'),
-    simpleRegExpRuleFactory('\\s:', 'No space before : in object properties!'),
-    simpleRegExpRuleFactory('\( *\w+ *\) +=>', 'parenthesis around single parameter arrow function'),
-    jsOperatorRule,
-];
-
-const cssRulesList = [];
-const htmlRulesList = [];
 
 function getBlocks(fileData, componentName) {
     const result = {
@@ -184,11 +107,10 @@ function checkFile(fileName, componentName='') {
     }
 
     let errorList = [];
-    let rule;
+    const jsRulesList = lintRules.jsRules;
+
     if (codeBlocks.jsBlock !== '') {
-        for (let i=0; i<jsRulesList.length; i++) {
-            rule = jsRulesList[i];
-            // TO DO -> Concatenate everything in order to display the errors in the regular order
+        for (let rule of Object.values(jsRulesList)) {
             errorList = errorList.concat(rule.process(codeBlocks.jsBlock));
         }
     }
