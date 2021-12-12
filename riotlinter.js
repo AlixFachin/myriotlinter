@@ -110,6 +110,11 @@ function checkFile(fileName, componentName='') {
     const jsRulesList = lintRules.jsRules;
 
     if (codeBlocks.jsBlock !== '') {
+        // Globally, we remove the single line comments from the JS Code
+        codeBlocks.jsBlock = lintRules.removeSingleLineComments_js(codeBlocks.jsBlock);
+        // Globally, we remove the multi-line comments
+        codeBlocks.jsBlock = lintRules.removeMultiLineComments_js(codeBlocks.jsBlock);
+
         for (let rule of Object.values(jsRulesList)) {
             errorList = errorList.concat(rule.process(codeBlocks.jsBlock));
         }

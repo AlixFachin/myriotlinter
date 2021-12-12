@@ -1,6 +1,6 @@
-const assert = require("assert");
-const { jsRules } = require('../rules.js');
-const should = require("chai").should();
+const { assert } = require("mocha");
+const { jsRules, removeSingleLineComments_js, removeMultiLineComments_js } = require('../rules.js');
+const { should } = require("chai").should();
 
 describe('JS Rules', () => {
     describe('BackQuote tests', () => {
@@ -299,6 +299,38 @@ describe('JS Rules', () => {
             errorList.length.should.equal(1);
         })
 
-    })
+    });
+
+    describe('Testing the filtering of single line comments', () => {
+
+        it('Should remove the double slashes and nothing else', () => {
+            let source = '// Adding 3\nlet x = 3\nlet y = 4 // and this';
+            let filtered = removeSingleLineComments_js(source);
+            filtered.should.equal('\nlet x = 3\nlet y = 4 ');
+        })
+
+    });
+
+    describe('Testing the filtering of multi line comments', () => {
+
+        it('Should remove the comments and keep the rest', () => {
+            let source = 'let x = 3;\n/** This is a comment\nThis is also a comment\n**/\nlet y = 4;';
+            let filtered = removeMultiLineComments_js(source);
+            filtered.should.equal('let x = 3;\n\n\n\nlet y = 4;');
+        });
+        
+        it('Case of two comments', () => {
+            let source = 'let x = 3;\n/** This is a comment\nThis is also a comment\n**/\nlet y = 4;\n';
+            let filtered = removeMultiLineComments_js(source + source);
+            filtered.should.equal('let x = 3;\n\n\n\nlet y = 4;\nlet x = 3;\n\n\n\nlet y = 4;\n');
+        });
+
+        it('Case of something on the same line than comment ends', () => {
+            let source = 'let x = 3;\n/** This is a comment\nThis is also a comment\n**/let a = b+c;\nlet y = 4;\n';
+            let filtered = removeMultiLineComments_js(source);
+            filtered.should.equal('let x = 3;\n\n\nlet a = b+c;\nlet y = 4;\n');
+        });
+
+    });
 
 });

@@ -15,18 +15,26 @@
 
 // Block Splitter
 
-const filterStringLiteral = string => {
-
-
+// remove the JS single line comments
+const removeSingleLineComments_js = oldLine => {
+    return oldLine.replace(RegExp('//.*','g'),'');
 };
+
+// remove the JS multi-line comments
+const removeMultiLineComments_js = block => {
+    // Will remove the content but keep newlines inside the string
+    const _keepNL = s => s.replace(RegExp('[^\n]','g'),'');
+    return block.replace(/\/\*\*(.|\n)*?\*\*\//g,_keepNL);
+}
 
 // @return Block[] where Block { originalText: string, processText: string, lineNr: string }
 const basicLineSplitter = metaBlock => {
-    return metaBlock.split('\n').map((x,i) => ({ 
-        originalTxt: x,
-        processTxt: x,
-        lineNr: i,
-     }));
+    return metaBlock.split('\n')
+        .map((x,i) => ({ 
+            originalTxt: x,
+            processTxt: x,
+            lineNr: i,
+        }));
 };
 
 // simpleRegExpRuleFactory returns an "rule" object, with a function and a message
@@ -107,4 +115,6 @@ module.exports = {
     jsRules: jsRules,
     cssRules: cssRules,
     htmlRules: htmlRules,
+    removeSingleLineComments_js: removeSingleLineComments_js,
+    removeMultiLineComments_js: removeMultiLineComments_js,
 };
