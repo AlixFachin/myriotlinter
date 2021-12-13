@@ -1,5 +1,5 @@
 const { assert } = require("mocha");
-const { jsRules, removeSingleLineComments_js, removeMultiLineComments_js } = require('../rules.js');
+const { jsRules, removeSingleLineComments_js, removeMultiLineComments_js, reduceStringLiterals_js } = require('../rules.js');
 const { should } = require("chai").should();
 
 describe('JS Rules', () => {
@@ -329,6 +329,22 @@ describe('JS Rules', () => {
             let source = 'let x = 3;\n/** This is a comment\nThis is also a comment\n**/let a = b+c;\nlet y = 4;\n';
             let filtered = removeMultiLineComments_js(source);
             filtered.should.equal('let x = 3;\n\n\nlet a = b+c;\nlet y = 4;\n');
+        });
+
+    });
+
+    describe('Testing the reducing of single string literals', () => {
+        it('Should remove the single strings but keep for meaning', () => {
+            let result = reduceStringLiterals_js("let x = 'This is me!'");
+            result.should.equal("let x = ''");
+        });
+        it('Test two string literals', () => {
+            let result = reduceStringLiterals_js("let x = 'This is me!' + c + 'And this one!'");
+            result.should.equal("let x = '' + c + ''");
+        });
+        it('Test escaped singlestring', () => {
+            let result = reduceStringLiterals_js("let x = 'Doesn\\\'t it?'");
+            result.should.equal("let x = ''");
         });
 
     });

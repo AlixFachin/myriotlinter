@@ -5,7 +5,6 @@
 // White space outside for IF and FOR
 // No space around HTML = sign
 // Trailing spaces (at end of line)
-// No /* ... */ comments
 // In HTML, no space between the end quote and the ">"
 // Making sure functions have commented all the parameters (-> Not sure really needed)
 // Missing semicolumns (? -> This one will be tricky!)
@@ -25,6 +24,11 @@ const removeMultiLineComments_js = block => {
     // Will remove the content but keep newlines inside the string
     const _keepNL = s => s.replace(RegExp('[^\n]','g'),'');
     return block.replace(/\/\*\*(.|\n)*?\*\*\//g,_keepNL);
+}
+
+const reduceStringLiterals_js = oldLine => {
+    const quoteRegExp = /'.*?'/g;
+    return oldLine.replace(/\\'/g,"").replace(quoteRegExp,"\'\'");
 }
 
 // @return Block[] where Block { originalText: string, processText: string, lineNr: string }
@@ -117,4 +121,5 @@ module.exports = {
     htmlRules: htmlRules,
     removeSingleLineComments_js: removeSingleLineComments_js,
     removeMultiLineComments_js: removeMultiLineComments_js,
+    reduceStringLiterals_js: reduceStringLiterals_js,
 };
