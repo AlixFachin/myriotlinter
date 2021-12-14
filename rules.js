@@ -14,6 +14,10 @@
 
 // Block Splitter
 
+// Function which only keeps \n from the parameter string (to keep line numbers intact...)
+// @return a function which returns a hollow string, surrounded by before/after characters
+const keepOnlyNL = (before='', after='') => (s => (before + s.replace(RegExp('[^\n]','g'),'') + after));
+
 // remove the JS single line comments
 const removeSingleLineComments_js = oldLine => {
     return oldLine.replace(RegExp('//.*','g'),'');
@@ -22,13 +26,20 @@ const removeSingleLineComments_js = oldLine => {
 // remove the JS multi-line comments
 const removeMultiLineComments_js = block => {
     // Will remove the content but keep newlines inside the string
-    const _keepNL = s => s.replace(RegExp('[^\n]','g'),'');
-    return block.replace(/\/\*\*(.|\n)*?\*\*\//g,_keepNL);
+    return block.replace(/\/\*(.|\n)*?\*\//g, keepOnlyNL());
 }
 
+// "shrinks" the single-quoted string literals by removing everything inside
+// (so that the inside of the string doesn't trigger any other rule)
 const reduceStringLiterals_js = oldLine => {
     const quoteRegExp = /'.*?'/g;
     return oldLine.replace(/\\'/g,"").replace(quoteRegExp,"\'\'");
+}
+// remove everything inside curly brackets.
+// Useful for removing any HTML-related rule interference from the JS bits inside HTML (RIOT components)
+const removeInsideBrackets = htmlBlock => {
+    const bracketRegExp = /{(.|\n)*?}/g;
+    return htmlBlock.replace(bracketRegExp, keepOnlyNL('{','}'));
 }
 
 // @return Block[] where Block { originalText: string, processText: string, lineNr: string }
@@ -51,7 +62,7 @@ const simpleRegExpRuleFactory = (name, regExpString, errorMessage) => {
         pattern = new RegExp(regExpString);
         blockList = basicLineSplitter(block)
         for (let i=0; i< blockList.length; i++ ) {
-            if (pattern.test(blockList[i].processTxt)) {
+            if (pattern.test(reduceStringLiterals_js(blockList[i].processTxt))) {
                 errorList.push({
                     lineNr: blockList[i].lineNr,
                     errorLine: blockList[i].originalTxt,
@@ -89,7 +100,7 @@ const jsOperatorRule = {
         pattern = new RegExp(js_operators_regexp);
         lines = block.split('\n');
         for (let i=0; i< lines.length; i++ ) {
-            if (pattern.test(lines[i])) {
+            if (pattern.test(reduceStringLiterals_js(lines[i]))) {
             
                 errorList.push({
                     lineNr: i,
@@ -112,8 +123,33 @@ const jsRules = {
     jsOperatorRule: jsOperatorRule,
 };
 
+const space_equal_rule_html = {
+    name: 'spaceEqualRule_html',
+    message: 'No spare around = in HTML block!',
+    process: block => {
+        const errorList = [];
+        pattern = new RegExp('(\\s=\\S|\\S=\\s|\\s=\\s)');
+        blockList = basicLineSplitter(removeInsideBrackets(block));
+        for (let i=0; i< blockList.length; i++ ) {
+            if (pattern.test(reduceStringLiterals_js(blockList[i].processTxt))) {
+                errorList.push({
+                    lineNr: blockList[i].lineNr,
+                    errorLine: blockList[i].originalTxt,
+                    errorMsg: 'No spare around = in HTML block!',
+                })
+            }
+        }
+        return errorList;
+    },
+};
+
+const htmlRules = {
+    space_equal_rule: space_equal_rule_html,
+};
+
+
+
 const cssRules = {};
-const htmlRules = {};
 
 module.exports = {
     jsRules: jsRules,
@@ -122,4 +158,5 @@ module.exports = {
     removeSingleLineComments_js: removeSingleLineComments_js,
     removeMultiLineComments_js: removeMultiLineComments_js,
     reduceStringLiterals_js: reduceStringLiterals_js,
+    removeInsideBrackets: removeInsideBrackets,
 };

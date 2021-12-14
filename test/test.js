@@ -1,5 +1,6 @@
 const { assert } = require("mocha");
-const { jsRules, removeSingleLineComments_js, removeMultiLineComments_js, reduceStringLiterals_js } = require('../rules.js');
+const { jsRules, htmlRules  } = require('../rules.js');
+const { removeSingleLineComments_js, removeMultiLineComments_js, reduceStringLiterals_js, removeInsideBrackets } = require('../rules.js')
 const { should } = require("chai").should();
 
 describe('JS Rules', () => {
@@ -348,5 +349,50 @@ describe('JS Rules', () => {
         });
 
     });
+
+});
+
+describe('HTML Rules', () => {
+    describe('Filtering of JS Block', () => {
+        it ('Should remove single line brackets', () => {
+            let result = removeInsideBrackets('<mytag style={ x === y ? "width:100%;" : "width:50%;" }> </mytag>');
+            result.should.equal('<mytag style={}> </mytag>')
+        });
+        it ('Should remove multiple line brackets', () => {
+            let result = removeInsideBrackets('<mytag style={ x === y ? \n"width:100%;" \n: "width:50%;" }> </mytag>');
+            result.should.equal('<mytag style={\n\n}> </mytag>')
+        });
+        it ('Should deal with several brackets', () => {
+            let result = removeInsideBrackets('<mytag style={ x === y ? \n"width:100%;" \n: "width:50%;" }> </mytag>');
+            result.should.equal('<mytag style={\n\n}> </mytag>')
+        });
+
+    });
+    
+    describe('No spaces around the equal sign', () => {
+        const space_equal_rule = htmlRules.space_equal_rule;
+
+        it('Should trigger for wrong spacing', () => {
+            space_equal_rule.process.should.not.be.undefined;
+            space_equal_rule.process.should.be.a('function');
+
+            let errorList;
+            errorList = space_equal_rule.process('<mytag style="width:100%;"> </mytag>');
+            errorList.should.deep.equal([]);
+            errorList = space_equal_rule.process('<mytag style= "width:100%;"> </mytag>');
+            errorList.length.should.equal(1);
+            errorList = space_equal_rule.process('<mytag style ="width:100%;"> </mytag>');
+            errorList.length.should.equal(1);
+            errorList = space_equal_rule.process('<mytag style = "width:100%;"> </mytag>');
+            errorList.length.should.equal(1);
+        });
+        
+        xit('Rule should not trigger when = is inside JS expressions', () => {
+            let errorList;
+            errorList = space_equal_rule.process('<mytag style={ x === y ? "width:100%;" : "width:50%;" }> </mytag>');
+            errorList.length.should.equal(0);
+        })
+
+    })
 
 });
