@@ -1,4 +1,5 @@
 
+'use strict';
 // RULES
 // - no backquotes
 // White space inside {} for HTML expressions
@@ -59,8 +60,8 @@ const simpleRegExpRuleFactory = (name, regExpString, errorMessage) => {
     rule.message = errorMessage;
     rule.process = block => {
         const errorList = [];
-        pattern = new RegExp(regExpString);
-        blockList = basicLineSplitter(block)
+        const pattern = new RegExp(regExpString);
+        const blockList = basicLineSplitter(block)
         for (let i=0; i< blockList.length; i++ ) {
             if (pattern.test(reduceStringLiterals_js(blockList[i].processTxt))) {
                 errorList.push({
@@ -94,14 +95,11 @@ const jsOperatorRule = {
             
             ].join('|') + ')';
         const js_operators_regexp = `(\\S${js_operators}\\S|\\s${js_operators}\\S|\\S${js_operators}\\s)`
-        const operator_exceptions = new RegExp([].join('|'));
-
         const errorList = [];
-        pattern = new RegExp(js_operators_regexp);
-        lines = block.split('\n');
+        const pattern = new RegExp(js_operators_regexp);
+        const lines = block.split('\n');
         for (let i=0; i< lines.length; i++ ) {
             if (pattern.test(reduceStringLiterals_js(lines[i]))) {
-            
                 errorList.push({
                     lineNr: i,
                     errorLine: lines[i],
@@ -128,10 +126,10 @@ const space_equal_rule_html = {
     message: 'No spare around = in HTML block!',
     process: block => {
         const errorList = [];
-        pattern = new RegExp('(\\s=\\S|\\S=\\s|\\s=\\s)');
-        blockList = basicLineSplitter(removeInsideBrackets(block));
+        const pattern = new RegExp('(\\s=\\S|\\S=\\s|\\s=\\s)');
+        const blockList = basicLineSplitter(removeInsideBrackets(block));
         for (let i=0; i< blockList.length; i++ ) {
-            if (pattern.test(reduceStringLiterals_js(blockList[i].processTxt))) {
+            if (pattern.test(blockList[i].processTxt)) {
                 errorList.push({
                     lineNr: blockList[i].lineNr,
                     errorLine: blockList[i].originalTxt,
@@ -143,11 +141,31 @@ const space_equal_rule_html = {
     },
 };
 
-const htmlRules = {
-    space_equal_rule: space_equal_rule_html,
+const space_before_closing_tag_html = {
+    name: 'spaceBeforeClosingTag_html',
+    message: 'No spare before Closing tag',
+    process: block => {
+        const errorList = [];
+        const pattern = new RegExp('<(.|\\n)*?\\s>','g');
+        // Because those errors can happen on several lines, we will apply directly the RegExp to the big block
+        const matchList = removeInsideBrackets(block).match(pattern);
+        if (matchList) {
+            for (let i=0; i< matchList.length; i++ ) {
+                errorList.push({
+                    lineNr: 0, // TO DO
+                    errorLine: matchList[i],
+                    errorMsg: 'No spare before closing tag in HTML!',
+                })
+            }
+        }
+        return errorList;
+    },
 };
 
-
+const htmlRules = {
+    space_equal_rule: space_equal_rule_html,
+    space_before_closing_tag_html: space_before_closing_tag_html,
+};
 
 const cssRules = {};
 

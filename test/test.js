@@ -387,12 +387,33 @@ describe('HTML Rules', () => {
             errorList.length.should.equal(1);
         });
         
-        xit('Rule should not trigger when = is inside JS expressions', () => {
+        it('Rule should not trigger when = is inside JS expressions', () => {
             let errorList;
             errorList = space_equal_rule.process('<mytag style={ x === y ? "width:100%;" : "width:50%;" }> </mytag>');
             errorList.length.should.equal(0);
         })
 
     })
+
+    describe('No spaces before closing tag!', () => {
+        const space_end_tag = htmlRules.space_before_closing_tag_html;
+
+        it('Should trigger for wrong spacing', () => {
+            space_end_tag.process.should.not.be.undefined;
+            space_end_tag.process.should.be.a('function');
+
+            let errorList;
+            errorList = space_end_tag.process('<mytag style="width:100%;"> </mytag>');
+            errorList.should.deep.equal([]);
+            errorList = space_end_tag.process('<mytag style="width:100%;" > </mytag>');
+            errorList.length.should.equal(1);
+            errorList = space_end_tag.process('<mytag style="width:100%;"\n onclick={ myclickhandler } > </mytag>');
+            errorList.length.should.equal(1);
+            errorList = space_end_tag.process('<mytag style="width:100%;"\n onclick={ myclickhandler }\n > </mytag>');
+            errorList.length.should.equal(1);
+        });
+        
+    })
+
 
 });
